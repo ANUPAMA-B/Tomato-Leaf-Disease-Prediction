@@ -1,0 +1,7 @@
+Flask
+numpy
+pyttsx3
+tensorflow
+Pillow
+googletrans
+werkzeug

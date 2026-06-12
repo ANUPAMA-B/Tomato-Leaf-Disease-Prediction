@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <title>Tomato Disease Prediction</title>
+    <style>
+        /* Background image setup */
+        body {
+            font-family: 'Poppins', sans-serif;
+            /* background: url('C:\Users\bvred\OneDrive\Desktop\project final year\static\css\giphy.webp') no-repeat center center fixed; */
+            /* background-color: black; */
+            background-image: url('../static/css/giphy.webp');
+            /* background-size: cover; */
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        body::before {
+            content: "";
+            position: absolute;
+             top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(0deg, rgba(0,0,0,0.8), rgba(0,0,0,0.2));
+  z-index: -1;
+  opacity: 0.8;
+}
+
+        /* Transparent white container */
+        .container {
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.6);  /* 60% transparency */
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        h1 {
+            color: #000000;
+        }
+
+        label {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        input[type="file"] {
+            display: block;
+            margin: 10px auto;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #218838;
+        }
+
+        .result {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        img {
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            width: 100%;
+            max-width: 200px;
+        }
+
+        .info-box {
+            background: #f1f1f1;
+            padding: 10px;
+            margin-top: 15px;
+            border-radius: 5px;
+        }
+
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .whatsapp-btn {
+            background-color: #25D366;
+        }
+
+        .whatsapp-btn:hover {
+            background-color: #1DA851;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="title">Tomato Leaf Disease Prediction</h1>
+        
+        <label for="language">Select Language:</label>
+        <select id="language" onchange="changeLanguage()">
+            <option value="en">English</option>
+            <option value="te">Telugu</option>
+            <option value="kn">Kannada</option>
+            <option value="ta">Tamil</option>
+            <option value="hi">Hindi</option>
+        </select>
+
+        <div class="info-box">
+            <p><strong id="dateTimeLabel">Current Date & Time:</strong> <span id="datetime"></span></p>
+            <p><strong id="weatherLabel">Weather:</strong> <span id="weather">Loading...</span></p>
+            <p><strong id="weatherLabel">Number of Users: </strong>{{upload_count}}</p>
+        </div>
+
+        <form action="/predict" method="post" enctype="multipart/form-data">
+            <label for="file" id="uploadLabel">Upload a Leaf Image:</label>
+            <input type="file" name="file" id="file" accept="image/*" required>
+            <button type="submit" id="predictButton" >Predict Disease</button>
+        </form>
+        
+
+        {% if filename %}
+        <div class="result">
+            <h2 id="uploadedImageLabel">Uploaded Image:</h2>
+            <img id="uploadedImage" src="{{ url_for('send_uploaded_file', filename=filename) }}" alt="Uploaded Leaf Image">
+            <h2 id="predictedLabel">Predicted Disease: <span id="predictedDisease">{{ predicted_disease }}</span></h2>
+            <h2 id="causeLabel">Cause: <span id="cause">{{cause}}</span></h2>
+            <h2 id="pesticideLabel">Pesticide: <span id="pesticide">{{pesticide}}</span></h2>
+
+            <div class="btn-group">
+                <button onclick="downloadReport()" id="downloadButton">Download Report</button>
+                <button class="whatsapp-btn" onclick="shareOnWhatsApp()" id="whatsappButton">Share on WhatsApp</button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Function to update Date & Time
+        function updateDateTime() {
+            const now = new Date();
+            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            document.getElementById("datetime").innerText = now.toLocaleString("en-US", options);
+        }
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+
+        // Fetch weather data
+        function fetchWeather() {
+            fetch("https://wttr.in/?format=%C|%t|%w|%h")
+                .then(response => response.text())
+                .then(data => {
+                    const [condition, temperature, wind, humidity] = data.split("|");
+                    document.getElementById("weather").innerHTML = `
+                        <strong>${condition}</strong> 
+                        🌡 Temperature: ${temperature} 
+                        💨 Wind: ${wind} 
+                        💧 Humidity: ${humidity}
+                    `;
+                })
+                .catch(error => {
+                    document.getElementById("weather").innerText = "Weather unavailable";
+                });
+        }
+        fetchWeather();
+        function speakText() {
+            const disease = document.getElementById("predictedDisease").innerText;
+
+            if (disease) {
+                const textToSpeak = `The predicted disease is ${disease}.`;
+
+                const speech = new SpeechSynthesisUtterance(textToSpeak);
+                speech.lang = "en-US";
+                speech.rate = 1;
+                speech.pitch = 1;
+
+                window.speechSynthesis.speak(speech);
+            }
+        }
+        const translations = {
+            en: {
+                title: "Tomato Leaf Disease Prediction",
+                dateTimeLabel: "Current Date & Time:",
+                weatherLabel: "Weather:",
+                uploadLabel: "Upload a Leaf Image:",
+                predictButton: "Predict Disease",
+                downloadButton: "Download Report",
+                whatsappButton: "Share on WhatsApp"
+            },
+            te: {
+                title: "టమోటా ఆకుల వ్యాధి అంచనా",
+                dateTimeLabel: "ప్రస్తుత తేది & సమయం:",
+                weatherLabel: "వాతావరణం:",
+                uploadLabel: "ఆకుల చిత్రం అప్లోడ్ చేయండి:",
+                predictButton: "వ్యాధిని అంచనా వేయండి",
+                downloadButton: "నివేదికను డౌన్‌లోడ్ చేయండి",
+                whatsappButton: "WhatsAppలో షేర్ చేయండి"
+            },
+            kn: {
+                title: "ಟೊಮಾಟೊ ಎಲೆ ರೋಗ ಮುನ್ಸೂಚನೆ",
+                dateTimeLabel: "ಪ್ರಸಕ್ತ ದಿನಾಂಕ & ಸಮಯ:",
+                weatherLabel: "ಹವಾಮಾನ:",
+                uploadLabel: "ಎಲೆಯ ಚಿತ್ರವನ್ನು ಅಪ್ಲೋಡ್ ಮಾಡಿ:",
+                predictButton: "ರೋಗ ಮುನ್ಸೂಚನೆ ಮಾಡಿ",
+                downloadButton: "ವರದಿಯನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ",
+                whatsappButton: "WhatsApp ನಲ್ಲಿ ಹಂಚಿಕೊಳ್ಳಿ"
+            },
+            ta: {
+                title: "தக்காளி இலை நோய் கணிப்பு",
+                dateTimeLabel: "தற்போதைய தேதி & நேரம்:",
+                weatherLabel: "வானிலை:",
+                uploadLabel: "இலை படத்தை பதிவேற்றவும்:",
+                predictButton: "நோயைக் கணிக்கவும்",
+                downloadButton: "அறிக்கையை பதிவிறக்கவும்",
+                whatsappButton: "WhatsApp இல் பகிரவும்"
+            },
+            hi: {
+    "title": "टमाटर पत्ती रोग की भविष्यवाणी",
+    "dateTimeLabel": "वर्तमान दिनांक और समय:",
+    "weatherLabel": "मौसम:",
+    "uploadLabel": "पत्ती की छवि अपलोड करें:",
+    "predictButton": "रोग की भविष्यवाणी करें",
+    "downloadButton": "रिपोर्ट डाउनलोड करें",
+    "whatsappButton": "WhatsApp पर साझा करें"
+}
+        };
+        function changeLanguage() {
+            const lang = document.getElementById("language").value;
+            document.getElementById("title").innerText = translations[lang].title;
+            document.getElementById("dateTimeLabel").innerText = translations[lang].dateTimeLabel;
+            document.getElementById("weatherLabel").innerText = translations[lang].weatherLabel;
+            document.getElementById("uploadLabel").innerText = translations[lang].uploadLabel;
+            document.getElementById("predictButton").innerText = translations[lang].predictButton;
+            document.getElementById("downloadButton").innerText = translations[lang].downloadButton;
+            document.getElementById("whatsappButton").innerText = translations[lang].whatsappButton;
+        }
+
+        // Trigger speech when content is loaded or updated
+        const observer = new MutationObserver(() => speakText());
+        observer.observe(document.querySelector('.result'), { childList: true, subtree: true });
+
+        // Optional: Trigger on page load if content already exists
+        window.onload = speakText;
+        
+        
+
+        // Download report as PDF
+        function downloadReport() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(18);
+            doc.text("Tomato Leaf Disease Prediction Report", 20, 20);
+
+            const now = new Date().toLocaleString();
+            doc.setFontSize(12);
+            doc.text(`Generated on: ${now}`, 20, 30);
+
+            const predictedDisease = document.getElementById("predictedDisease").innerText;
+            const cause = document.getElementById("cause").innerText;
+            const pesticide = document.getElementById("pesticide").innerText;
+
+            doc.setFontSize(14);
+            doc.text(`Predicted Disease: ${predictedDisease}`, 20, 50);
+            doc.text(`Cause: ${cause}`, 20, 60);
+            doc.text(`Recommended Pesticide: ${pesticide}`, 20, 70);
+
+            doc.save("Disease_Prediction_Report.pdf");
+        }
+
+        // Share on WhatsApp
+        function shareOnWhatsApp() {
+            const disease = document.getElementById("predictedDisease").innerText;
+            const message = `Tomato Leaf Disease Prediction:\n\nPredicted Disease: ${disease}\nDate & Time: ${document.getElementById("datetime").innerText}\nWeather: ${document.getElementById("weather").innerText}`;
+            
+            const encodedMessage = encodeURIComponent(message);
+            const whatsappURL = `https://wa.me/?text=${encodedMessage}`;
+            
+            window.open(whatsappURL, "_blank");
+        }
+    </script>
+</body>
+</html>
